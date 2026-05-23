@@ -73,7 +73,8 @@ export default async function handler(request, response) {
       client_name,
       client_type,
       client_phone,
-      client_identity
+      client_identity,
+      avatar_url
     } = body;
 
     if (!email || !password || !full_name || !role) {
@@ -117,7 +118,8 @@ export default async function handler(request, response) {
       email_confirm: true,
       user_metadata: {
         full_name,
-        role
+        role,
+        avatar_url
       }
     });
 
@@ -132,6 +134,7 @@ export default async function handler(request, response) {
         email,
         full_name,
         role,
+        avatar_url: avatar_url || null,
         client_id: finalClientId,
         status: 'active',
         updated_at: new Date().toISOString()

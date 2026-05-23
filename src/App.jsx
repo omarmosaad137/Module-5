@@ -138,6 +138,70 @@ const initialSearch = {
   type: 'All'
 };
 
+const initialCourtHearing = {
+  matter_id: '',
+  court_name: 'Dubai Courts',
+  case_number: '',
+  hearing_date: '',
+  hearing_time: '',
+  courtroom: '',
+  hearing_type: 'First hearing',
+  assigned_lawyer: '',
+  client_attendance_required: 'false',
+  lawyer_attendance_required: 'true',
+  preparation_notes: '',
+  documents_required: '',
+  previous_result: '',
+  next_purpose: '',
+  judgment_expected_date: '',
+  appeal_deadline: '',
+  status: 'Scheduled',
+  client_visible: 'false'
+};
+
+const initialExpertMission = {
+  matter_id: '',
+  expert_name: '',
+  expert_type: 'Accounting',
+  expert_contact: '',
+  appointment_date: '',
+  deposit_amount: '',
+  deposit_deadline: '',
+  deposit_paid: 'false',
+  meeting_date: '',
+  meeting_location: '',
+  documents_submitted: '',
+  documents_pending: '',
+  court_questions: '',
+  site_visit_date: '',
+  preliminary_report_date: '',
+  objection_deadline: '',
+  final_report_date: '',
+  status: 'Expert appointed',
+  notes: ''
+};
+
+const initialDailyMeeting = {
+  meeting_date: '',
+  meeting_time: '',
+  meeting_type: 'Daily',
+  attendees: '',
+  agenda: '',
+  decisions: '',
+  followup_date: '',
+  status: 'Scheduled'
+};
+
+const initialMeetingTask = {
+  meeting_id: '',
+  matter_id: '',
+  title: '',
+  owner_name: '',
+  due_date: '',
+  priority: 'Normal',
+  status: 'Pending'
+};
+
 function Card({ title, action, children }) {
   return (
     <section className="card">
@@ -236,6 +300,10 @@ export default function App() {
   const [hrDocuments, setHrDocuments] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [emailQueue, setEmailQueue] = useState([]);
+  const [courtHearings, setCourtHearings] = useState([]);
+  const [expertMissions, setExpertMissions] = useState([]);
+  const [dailyMeetings, setDailyMeetings] = useState([]);
+  const [meetingTasks, setMeetingTasks] = useState([]);
   const [newUser, setNewUser] = useState(initialCreateUser);
   const [newClient, setNewClient] = useState(initialClient);
   const [newInvoiceRequest, setNewInvoiceRequest] = useState(initialInvoiceRequest);
@@ -249,6 +317,10 @@ export default function App() {
   const [newChatMessage, setNewChatMessage] = useState(initialChatMessage);
   const [newEmailDraft, setNewEmailDraft] = useState(initialEmailDraft);
   const [globalSearch, setGlobalSearch] = useState(initialSearch);
+  const [newCourtHearing, setNewCourtHearing] = useState(initialCourtHearing);
+  const [newExpertMission, setNewExpertMission] = useState(initialExpertMission);
+  const [newDailyMeeting, setNewDailyMeeting] = useState(initialDailyMeeting);
+  const [newMeetingTask, setNewMeetingTask] = useState(initialMeetingTask);
 
   const isManager = profile?.role === 'manager';
   const isFinance = profile?.role === 'finance';
@@ -257,6 +329,7 @@ export default function App() {
   const isClient = profile?.role === 'client';
   const canAccessHr = isManager || isHr || isFinance;
   const canUseInternalComms = isManager || isLawFirm || isFinance || isHr;
+  const canUseOperations = isManager || isLawFirm || isFinance;
 
   const nav = useMemo(() => {
     if (!profile) return [];
@@ -271,7 +344,10 @@ export default function App() {
       ['invoice-requests', 'Invoice Requests'],
       ['chat', 'Team Chat'],
       ['email', 'Email Service'],
-      ['search', 'Search']
+      ['search', 'Search'],
+      ['court-calendar', 'Court Calendar'],
+      ['expert-missions', 'Expert Missions'],
+      ['daily-meetings', 'Daily Meetings']
     ];
 
     if (profile.role === 'finance') return [
@@ -283,7 +359,10 @@ export default function App() {
       ['hr', 'HR / Payroll'],
       ['chat', 'Team Chat'],
       ['email', 'Email Service'],
-      ['search', 'Search']
+      ['search', 'Search'],
+      ['court-calendar', 'Court Calendar'],
+      ['expert-missions', 'Expert Missions'],
+      ['daily-meetings', 'Daily Meetings']
     ];
 
     if (profile.role === 'hr') return [
@@ -304,6 +383,9 @@ export default function App() {
       ['chat', 'Team Chat'],
       ['email', 'Email Service'],
       ['search', 'Search'],
+      ['court-calendar', 'Court Calendar'],
+      ['expert-missions', 'Expert Missions'],
+      ['daily-meetings', 'Daily Meetings'],
       ['audit', 'Audit']
     ];
   }, [profile, isClient]);
@@ -374,7 +456,8 @@ export default function App() {
       loadInvoiceRequests(),
       loadFinanceData(),
       loadHrData(),
-      loadCommunicationData()
+      loadCommunicationData(),
+      loadOperationsData()
     ]);
   }
 
@@ -517,6 +600,35 @@ export default function App() {
 
     if (!chatRes.error) setChatMessages(chatRes.data || []);
     if (!emailRes.error) setEmailQueue(emailRes.data || []);
+  }
+
+
+  async function loadOperationsData() {
+    if (!canUseOperations) return;
+
+    const [hearingsRes, expertsRes, meetingsRes, meetingTasksRes] = await Promise.all([
+      supabase
+        .from('court_hearings')
+        .select('id, matter_id, court_name, case_number, hearing_date, hearing_time, courtroom, hearing_type, assigned_lawyer, client_attendance_required, lawyer_attendance_required, preparation_notes, documents_required, previous_result, next_purpose, judgment_expected_date, appeal_deadline, status, client_visible, created_at, matters(ref, title, clients(name, email))')
+        .order('hearing_date', { ascending: true }),
+      supabase
+        .from('expert_missions')
+        .select('id, matter_id, expert_name, expert_type, expert_contact, appointment_date, deposit_amount, deposit_deadline, deposit_paid, meeting_date, meeting_location, documents_submitted, documents_pending, court_questions, site_visit_date, preliminary_report_date, objection_deadline, final_report_date, status, notes, created_at, matters(ref, title, clients(name, email))')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('daily_meetings')
+        .select('id, meeting_date, meeting_time, meeting_type, attendees, agenda, decisions, followup_date, status, created_at, created_by_profile:profiles!daily_meetings_created_by_fkey(full_name, email)')
+        .order('meeting_date', { ascending: false }),
+      supabase
+        .from('meeting_tasks')
+        .select('id, meeting_id, matter_id, title, owner_name, due_date, priority, status, created_at, daily_meetings(meeting_date, meeting_type), matters(ref, title)')
+        .order('due_date', { ascending: true })
+    ]);
+
+    if (!hearingsRes.error) setCourtHearings(hearingsRes.data || []);
+    if (!expertsRes.error) setExpertMissions(expertsRes.data || []);
+    if (!meetingsRes.error) setDailyMeetings(meetingsRes.data || []);
+    if (!meetingTasksRes.error) setMeetingTasks(meetingTasksRes.data || []);
   }
 
   async function createUser(event) {
@@ -1177,6 +1289,178 @@ export default function App() {
     }
 
     return results;
+  }
+
+
+  async function createCourtHearing(event) {
+    event.preventDefault();
+    setMessage('');
+
+    if (!newCourtHearing.matter_id || !newCourtHearing.hearing_date) {
+      setMessage('Matter and hearing date are required.');
+      return;
+    }
+
+    const { error } = await supabase.from('court_hearings').insert({
+      matter_id: newCourtHearing.matter_id,
+      court_name: newCourtHearing.court_name || null,
+      case_number: newCourtHearing.case_number || null,
+      hearing_date: newCourtHearing.hearing_date,
+      hearing_time: newCourtHearing.hearing_time || null,
+      courtroom: newCourtHearing.courtroom || null,
+      hearing_type: newCourtHearing.hearing_type || null,
+      assigned_lawyer: newCourtHearing.assigned_lawyer || null,
+      client_attendance_required: String(newCourtHearing.client_attendance_required) === 'true',
+      lawyer_attendance_required: String(newCourtHearing.lawyer_attendance_required) === 'true',
+      preparation_notes: newCourtHearing.preparation_notes || null,
+      documents_required: newCourtHearing.documents_required || null,
+      previous_result: newCourtHearing.previous_result || null,
+      next_purpose: newCourtHearing.next_purpose || null,
+      judgment_expected_date: newCourtHearing.judgment_expected_date || null,
+      appeal_deadline: newCourtHearing.appeal_deadline || null,
+      status: newCourtHearing.status || 'Scheduled',
+      client_visible: String(newCourtHearing.client_visible) === 'true',
+      created_by: profile.user_id
+    });
+
+    if (error) {
+      setMessage(error.message || 'Failed to create court hearing.');
+      return;
+    }
+
+    setNewCourtHearing(initialCourtHearing);
+    setMessage('Court hearing created successfully.');
+    await loadDashboardData();
+  }
+
+  async function updateCourtHearingStatus(id, status) {
+    const { error } = await supabase.from('court_hearings').update({ status }).eq('id', id);
+    if (error) {
+      setMessage(error.message || 'Failed to update hearing.');
+      return;
+    }
+    await loadDashboardData();
+  }
+
+  async function createExpertMission(event) {
+    event.preventDefault();
+    setMessage('');
+
+    if (!newExpertMission.matter_id) {
+      setMessage('Matter is required for expert mission.');
+      return;
+    }
+
+    const { error } = await supabase.from('expert_missions').insert({
+      matter_id: newExpertMission.matter_id,
+      expert_name: newExpertMission.expert_name || null,
+      expert_type: newExpertMission.expert_type,
+      expert_contact: newExpertMission.expert_contact || null,
+      appointment_date: newExpertMission.appointment_date || null,
+      deposit_amount: newExpertMission.deposit_amount ? Number(newExpertMission.deposit_amount) : null,
+      deposit_deadline: newExpertMission.deposit_deadline || null,
+      deposit_paid: String(newExpertMission.deposit_paid) === 'true',
+      meeting_date: newExpertMission.meeting_date || null,
+      meeting_location: newExpertMission.meeting_location || null,
+      documents_submitted: newExpertMission.documents_submitted || null,
+      documents_pending: newExpertMission.documents_pending || null,
+      court_questions: newExpertMission.court_questions || null,
+      site_visit_date: newExpertMission.site_visit_date || null,
+      preliminary_report_date: newExpertMission.preliminary_report_date || null,
+      objection_deadline: newExpertMission.objection_deadline || null,
+      final_report_date: newExpertMission.final_report_date || null,
+      status: newExpertMission.status || 'Expert appointed',
+      notes: newExpertMission.notes || null,
+      created_by: profile.user_id
+    });
+
+    if (error) {
+      setMessage(error.message || 'Failed to create expert mission.');
+      return;
+    }
+
+    setNewExpertMission(initialExpertMission);
+    setMessage('Expert mission created successfully.');
+    await loadDashboardData();
+  }
+
+  async function updateExpertStatus(id, status) {
+    const { error } = await supabase.from('expert_missions').update({ status }).eq('id', id);
+    if (error) {
+      setMessage(error.message || 'Failed to update expert mission.');
+      return;
+    }
+    await loadDashboardData();
+  }
+
+  async function createDailyMeeting(event) {
+    event.preventDefault();
+    setMessage('');
+
+    if (!newDailyMeeting.meeting_date) {
+      setMessage('Meeting date is required.');
+      return;
+    }
+
+    const { error } = await supabase.from('daily_meetings').insert({
+      meeting_date: newDailyMeeting.meeting_date,
+      meeting_time: newDailyMeeting.meeting_time || null,
+      meeting_type: newDailyMeeting.meeting_type,
+      attendees: newDailyMeeting.attendees || null,
+      agenda: newDailyMeeting.agenda || null,
+      decisions: newDailyMeeting.decisions || null,
+      followup_date: newDailyMeeting.followup_date || null,
+      status: newDailyMeeting.status || 'Scheduled',
+      created_by: profile.user_id
+    });
+
+    if (error) {
+      setMessage(error.message || 'Failed to create meeting.');
+      return;
+    }
+
+    setNewDailyMeeting(initialDailyMeeting);
+    setMessage('Daily meeting created successfully.');
+    await loadDashboardData();
+  }
+
+  async function createMeetingTask(event) {
+    event.preventDefault();
+    setMessage('');
+
+    if (!newMeetingTask.title.trim()) {
+      setMessage('Task title is required.');
+      return;
+    }
+
+    const { error } = await supabase.from('meeting_tasks').insert({
+      meeting_id: newMeetingTask.meeting_id || null,
+      matter_id: newMeetingTask.matter_id || null,
+      title: newMeetingTask.title,
+      owner_name: newMeetingTask.owner_name || null,
+      due_date: newMeetingTask.due_date || null,
+      priority: newMeetingTask.priority || 'Normal',
+      status: newMeetingTask.status || 'Pending',
+      created_by: profile.user_id
+    });
+
+    if (error) {
+      setMessage(error.message || 'Failed to create meeting task.');
+      return;
+    }
+
+    setNewMeetingTask(initialMeetingTask);
+    setMessage('Meeting task created successfully.');
+    await loadDashboardData();
+  }
+
+  async function updateMeetingTaskStatus(id, status) {
+    const { error } = await supabase.from('meeting_tasks').update({ status }).eq('id', id);
+    if (error) {
+      setMessage(error.message || 'Failed to update task.');
+      return;
+    }
+    await loadDashboardData();
   }
 
   if (loading) {
@@ -2393,6 +2677,367 @@ SUPABASE_SERVICE_ROLE_KEY=`}</pre>
                   </tbody>
                 </table>
               </Card>
+            </div>
+          )}
+
+
+          {page === 'court-calendar' && canUseOperations && (
+            <div className="grid">
+              <div className="stats">
+                <Stat label="Scheduled hearings" value={courtHearings.filter((item) => item.status === 'Scheduled').length} />
+                <Stat label="Client attendance" value={courtHearings.filter((item) => item.client_attendance_required).length} />
+                <Stat label="Judgment dates" value={courtHearings.filter((item) => item.judgment_expected_date).length} />
+                <Stat label="Appeal deadlines" value={courtHearings.filter((item) => item.appeal_deadline).length} />
+              </div>
+
+              <div className="grid two">
+                <Card title="Create Court Hearing">
+                  <form onSubmit={createCourtHearing} className="formGrid">
+                    <Field label="Matter">
+                      <select value={newCourtHearing.matter_id} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, matter_id: event.target.value })}>
+                        <option value="">Select matter</option>
+                        {matters.map((matter) => (
+                          <option key={matter.id} value={matter.id}>{matter.ref} — {matter.title}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Court">
+                      <input value={newCourtHearing.court_name} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, court_name: event.target.value })} />
+                    </Field>
+                    <Field label="Case number">
+                      <input value={newCourtHearing.case_number} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, case_number: event.target.value })} />
+                    </Field>
+                    <Field label="Hearing type">
+                      <select value={newCourtHearing.hearing_type} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, hearing_type: event.target.value })}>
+                        <option>First hearing</option>
+                        <option>Submission hearing</option>
+                        <option>Expert hearing</option>
+                        <option>Judgment</option>
+                        <option>Appeal</option>
+                        <option>Cassation</option>
+                        <option>Investigation</option>
+                        <option>Other</option>
+                      </select>
+                    </Field>
+                    <Field label="Hearing date">
+                      <input type="date" value={newCourtHearing.hearing_date} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, hearing_date: event.target.value })} />
+                    </Field>
+                    <Field label="Hearing time">
+                      <input type="time" value={newCourtHearing.hearing_time} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, hearing_time: event.target.value })} />
+                    </Field>
+                    <Field label="Court room / link">
+                      <input value={newCourtHearing.courtroom} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, courtroom: event.target.value })} />
+                    </Field>
+                    <Field label="Assigned lawyer">
+                      <input value={newCourtHearing.assigned_lawyer} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, assigned_lawyer: event.target.value })} />
+                    </Field>
+                    <Field label="Client attendance required">
+                      <select value={newCourtHearing.client_attendance_required} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, client_attendance_required: event.target.value })}>
+                        <option value="false">No</option>
+                        <option value="true">Yes</option>
+                      </select>
+                    </Field>
+                    <Field label="Lawyer attendance required">
+                      <select value={newCourtHearing.lawyer_attendance_required} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, lawyer_attendance_required: event.target.value })}>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select>
+                    </Field>
+                    <Field label="Judgment expected date">
+                      <input type="date" value={newCourtHearing.judgment_expected_date} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, judgment_expected_date: event.target.value })} />
+                    </Field>
+                    <Field label="Appeal deadline">
+                      <input type="date" value={newCourtHearing.appeal_deadline} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, appeal_deadline: event.target.value })} />
+                    </Field>
+                    <Field label="Documents required">
+                      <textarea value={newCourtHearing.documents_required} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, documents_required: event.target.value })} />
+                    </Field>
+                    <Field label="Preparation notes">
+                      <textarea value={newCourtHearing.preparation_notes} onChange={(event) => setNewCourtHearing({ ...newCourtHearing, preparation_notes: event.target.value })} />
+                    </Field>
+                    <button className="primary">Create Hearing</button>
+                  </form>
+                </Card>
+
+                <Card title="Court Calendar">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Matter</th>
+                        <th>Court</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {courtHearings.map((item) => (
+                        <tr key={item.id}>
+                          <td><strong>{item.hearing_date}</strong><br /><small>{item.hearing_time || ''}</small></td>
+                          <td>{item.matters?.ref || '-'}<br /><small>{item.matters?.clients?.name || ''}</small></td>
+                          <td>{item.court_name}<br /><small>{item.case_number || ''}</small></td>
+                          <td>{item.hearing_type}</td>
+                          <td><Pill>{item.status}</Pill></td>
+                          <td>
+                            <button onClick={() => updateCourtHearingStatus(item.id, 'Attended')}>Attended</button>
+                            <button onClick={() => updateCourtHearingStatus(item.id, 'Adjourned')}>Adjourned</button>
+                            <button onClick={() => updateCourtHearingStatus(item.id, 'Reserved for judgment')}>Reserved</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {page === 'expert-missions' && canUseOperations && (
+            <div className="grid">
+              <div className="stats">
+                <Stat label="Expert missions" value={expertMissions.length} />
+                <Stat label="Deposits pending" value={expertMissions.filter((item) => !item.deposit_paid).length} />
+                <Stat label="Meetings scheduled" value={expertMissions.filter((item) => item.meeting_date).length} />
+                <Stat label="Objection deadlines" value={expertMissions.filter((item) => item.objection_deadline).length} />
+              </div>
+
+              <div className="grid two">
+                <Card title="Create Expert Mission">
+                  <form onSubmit={createExpertMission} className="formGrid">
+                    <Field label="Matter">
+                      <select value={newExpertMission.matter_id} onChange={(event) => setNewExpertMission({ ...newExpertMission, matter_id: event.target.value })}>
+                        <option value="">Select matter</option>
+                        {matters.map((matter) => (
+                          <option key={matter.id} value={matter.id}>{matter.ref} — {matter.title}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Expert name">
+                      <input value={newExpertMission.expert_name} onChange={(event) => setNewExpertMission({ ...newExpertMission, expert_name: event.target.value })} />
+                    </Field>
+                    <Field label="Expert type">
+                      <select value={newExpertMission.expert_type} onChange={(event) => setNewExpertMission({ ...newExpertMission, expert_type: event.target.value })}>
+                        <option>Accounting</option>
+                        <option>Engineering</option>
+                        <option>Real estate</option>
+                        <option>Technical</option>
+                        <option>Medical</option>
+                        <option>Other</option>
+                      </select>
+                    </Field>
+                    <Field label="Expert contact">
+                      <input value={newExpertMission.expert_contact} onChange={(event) => setNewExpertMission({ ...newExpertMission, expert_contact: event.target.value })} />
+                    </Field>
+                    <Field label="Appointment date">
+                      <input type="date" value={newExpertMission.appointment_date} onChange={(event) => setNewExpertMission({ ...newExpertMission, appointment_date: event.target.value })} />
+                    </Field>
+                    <Field label="Deposit amount">
+                      <input type="number" value={newExpertMission.deposit_amount} onChange={(event) => setNewExpertMission({ ...newExpertMission, deposit_amount: event.target.value })} />
+                    </Field>
+                    <Field label="Deposit deadline">
+                      <input type="date" value={newExpertMission.deposit_deadline} onChange={(event) => setNewExpertMission({ ...newExpertMission, deposit_deadline: event.target.value })} />
+                    </Field>
+                    <Field label="Deposit paid">
+                      <select value={newExpertMission.deposit_paid} onChange={(event) => setNewExpertMission({ ...newExpertMission, deposit_paid: event.target.value })}>
+                        <option value="false">No</option>
+                        <option value="true">Yes</option>
+                      </select>
+                    </Field>
+                    <Field label="Expert meeting date">
+                      <input type="date" value={newExpertMission.meeting_date} onChange={(event) => setNewExpertMission({ ...newExpertMission, meeting_date: event.target.value })} />
+                    </Field>
+                    <Field label="Meeting location/link">
+                      <input value={newExpertMission.meeting_location} onChange={(event) => setNewExpertMission({ ...newExpertMission, meeting_location: event.target.value })} />
+                    </Field>
+                    <Field label="Documents submitted">
+                      <textarea value={newExpertMission.documents_submitted} onChange={(event) => setNewExpertMission({ ...newExpertMission, documents_submitted: event.target.value })} />
+                    </Field>
+                    <Field label="Documents pending">
+                      <textarea value={newExpertMission.documents_pending} onChange={(event) => setNewExpertMission({ ...newExpertMission, documents_pending: event.target.value })} />
+                    </Field>
+                    <Field label="Court questions / issues">
+                      <textarea value={newExpertMission.court_questions} onChange={(event) => setNewExpertMission({ ...newExpertMission, court_questions: event.target.value })} />
+                    </Field>
+                    <Field label="Objection deadline">
+                      <input type="date" value={newExpertMission.objection_deadline} onChange={(event) => setNewExpertMission({ ...newExpertMission, objection_deadline: event.target.value })} />
+                    </Field>
+                    <button className="primary">Create Expert Mission</button>
+                  </form>
+                </Card>
+
+                <Card title="Expert Missions">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Matter</th>
+                        <th>Expert</th>
+                        <th>Deposit</th>
+                        <th>Meeting</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expertMissions.map((item) => (
+                        <tr key={item.id}>
+                          <td>{item.matters?.ref || '-'}<br /><small>{item.matters?.clients?.name || ''}</small></td>
+                          <td><strong>{item.expert_name || '-'}</strong><br /><small>{item.expert_type}</small></td>
+                          <td>{item.deposit_amount ? `AED ${Number(item.deposit_amount).toLocaleString()}` : '-'}<br /><small>{item.deposit_paid ? 'paid' : 'pending'}</small></td>
+                          <td>{item.meeting_date || '-'}<br /><small>{item.meeting_location || ''}</small></td>
+                          <td><Pill>{item.status}</Pill></td>
+                          <td>
+                            <button onClick={() => updateExpertStatus(item.id, 'Documents submitted')}>Docs submitted</button>
+                            <button onClick={() => updateExpertStatus(item.id, 'Meeting attended')}>Meeting attended</button>
+                            <button onClick={() => updateExpertStatus(item.id, 'Final report issued')}>Final report</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {page === 'daily-meetings' && canUseOperations && (
+            <div className="grid">
+              <div className="stats">
+                <Stat label="Meetings" value={dailyMeetings.length} />
+                <Stat label="Open action items" value={meetingTasks.filter((task) => task.status !== 'Done').length} />
+                <Stat label="Urgent tasks" value={meetingTasks.filter((task) => task.priority === 'Urgent').length} />
+                <Stat label="Completed tasks" value={meetingTasks.filter((task) => task.status === 'Done').length} />
+              </div>
+
+              <div className="grid two">
+                <Card title="Create Daily Meeting">
+                  <form onSubmit={createDailyMeeting} className="formGrid">
+                    <Field label="Date">
+                      <input type="date" value={newDailyMeeting.meeting_date} onChange={(event) => setNewDailyMeeting({ ...newDailyMeeting, meeting_date: event.target.value })} />
+                    </Field>
+                    <Field label="Time">
+                      <input type="time" value={newDailyMeeting.meeting_time} onChange={(event) => setNewDailyMeeting({ ...newDailyMeeting, meeting_time: event.target.value })} />
+                    </Field>
+                    <Field label="Meeting type">
+                      <select value={newDailyMeeting.meeting_type} onChange={(event) => setNewDailyMeeting({ ...newDailyMeeting, meeting_type: event.target.value })}>
+                        <option>Daily</option>
+                        <option>Weekly</option>
+                        <option>Litigation</option>
+                        <option>Corporate</option>
+                        <option>Finance</option>
+                        <option>HR</option>
+                        <option>Management</option>
+                      </select>
+                    </Field>
+                    <Field label="Attendees">
+                      <textarea value={newDailyMeeting.attendees} onChange={(event) => setNewDailyMeeting({ ...newDailyMeeting, attendees: event.target.value })} />
+                    </Field>
+                    <Field label="Agenda">
+                      <textarea value={newDailyMeeting.agenda} onChange={(event) => setNewDailyMeeting({ ...newDailyMeeting, agenda: event.target.value })} />
+                    </Field>
+                    <Field label="Decisions">
+                      <textarea value={newDailyMeeting.decisions} onChange={(event) => setNewDailyMeeting({ ...newDailyMeeting, decisions: event.target.value })} />
+                    </Field>
+                    <Field label="Follow-up date">
+                      <input type="date" value={newDailyMeeting.followup_date} onChange={(event) => setNewDailyMeeting({ ...newDailyMeeting, followup_date: event.target.value })} />
+                    </Field>
+                    <button className="primary">Create Meeting</button>
+                  </form>
+                </Card>
+
+                <Card title="Create Meeting Task">
+                  <form onSubmit={createMeetingTask} className="formGrid">
+                    <Field label="Meeting">
+                      <select value={newMeetingTask.meeting_id} onChange={(event) => setNewMeetingTask({ ...newMeetingTask, meeting_id: event.target.value })}>
+                        <option value="">No meeting</option>
+                        {dailyMeetings.map((meeting) => (
+                          <option key={meeting.id} value={meeting.id}>{meeting.meeting_date} — {meeting.meeting_type}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Matter">
+                      <select value={newMeetingTask.matter_id} onChange={(event) => setNewMeetingTask({ ...newMeetingTask, matter_id: event.target.value })}>
+                        <option value="">No matter</option>
+                        {matters.map((matter) => (
+                          <option key={matter.id} value={matter.id}>{matter.ref} — {matter.title}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Task title">
+                      <input value={newMeetingTask.title} onChange={(event) => setNewMeetingTask({ ...newMeetingTask, title: event.target.value })} />
+                    </Field>
+                    <Field label="Owner">
+                      <input value={newMeetingTask.owner_name} onChange={(event) => setNewMeetingTask({ ...newMeetingTask, owner_name: event.target.value })} />
+                    </Field>
+                    <Field label="Due date">
+                      <input type="date" value={newMeetingTask.due_date} onChange={(event) => setNewMeetingTask({ ...newMeetingTask, due_date: event.target.value })} />
+                    </Field>
+                    <Field label="Priority">
+                      <select value={newMeetingTask.priority} onChange={(event) => setNewMeetingTask({ ...newMeetingTask, priority: event.target.value })}>
+                        <option>Low</option>
+                        <option>Normal</option>
+                        <option>High</option>
+                        <option>Urgent</option>
+                      </select>
+                    </Field>
+                    <button className="primary">Create Task</button>
+                  </form>
+                </Card>
+              </div>
+
+              <div className="grid two">
+                <Card title="Daily Meetings">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Agenda</th>
+                        <th>Decisions</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailyMeetings.map((meeting) => (
+                        <tr key={meeting.id}>
+                          <td><strong>{meeting.meeting_date}</strong><br /><small>{meeting.meeting_time || ''}</small></td>
+                          <td>{meeting.meeting_type}<br /><small>{meeting.attendees || ''}</small></td>
+                          <td>{meeting.agenda || '-'}</td>
+                          <td>{meeting.decisions || '-'}</td>
+                          <td><Pill>{meeting.status}</Pill></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Card>
+
+                <Card title="Meeting Action Items">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Task</th>
+                        <th>Owner</th>
+                        <th>Due</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {meetingTasks.map((task) => (
+                        <tr key={task.id}>
+                          <td><strong>{task.title}</strong><br /><small>{task.matters?.ref || ''}</small></td>
+                          <td>{task.owner_name || '-'}</td>
+                          <td>{task.due_date || '-'}</td>
+                          <td>{task.priority}</td>
+                          <td><Pill>{task.status}</Pill></td>
+                          <td>{task.status !== 'Done' && <button onClick={() => updateMeetingTaskStatus(task.id, 'Done')}>Done</button>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Card>
+              </div>
             </div>
           )}
 
